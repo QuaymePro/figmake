@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h2 { font-size: 14px; margin: 0 0 12px 0; color: #555; }
+    #output-container {
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 12px;
+      overflow: auto;
+      max-height: calc(100vh - 220px);
+    }
+    pre { font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word; }
+    .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .button-group { display: flex; gap: 8px; }
+    button {
+      background-color: #18a0fb; color: white; border: none; border-radius: 6px;
+      padding: 8px 12px; font-size: 12px; font-weight: 500; cursor: pointer;
+    }
+    button:disabled { background-color: #e0e0e0; color: #999; }
+    .tabs { display: flex; margin-bottom: 12px; border-bottom: 1px solid #e0e0e0; }
+    .tab { padding: 8px 16px; cursor: pointer; font-size: 12px; font-weight: 500; color: #666; border-bottom: 2px solid transparent; }
+    .tab.active { color: #18a0fb; border-bottom-color: #18a0fb; }
+    .hidden { display: none; }
+    .setting-group { margin-bottom: 16px; }
+    label { display: block; font-size: 11px; font-weight: 600; color: #888; margin-bottom: 4px; }
+    select { width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; }
+    canvas { border: 1px solid #eee; background-color: #f9f9f9; max-width: 100%; }
+    #validation-panel { padding: 10px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://unpkg.com/pixelmatch@5.3.0/index.js"></script>
+</head>
+<body>
+  <div class="controls">
+    <h2>Figma to React</h2>
+    <div class="button-group">
+      <button id="validate-btn">Validate</button>
+      <button id="copy-btn">Copy</button>
+      <button id="zip-btn">Export .ZIP</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div id="react-tab" class="tab active">React</div>
+    <div id="css-tab" class="tab">CSS</div>
+    <div id="json-tab" class="tab">JSON</div>
+    <div id="validation-tab" class="tab">Validation</div>
+    <div id="config-tab" class="tab">Settings</div>
+  </div>
+  
+  <div id="output-container">
+    <pre id="react-output"></pre>
+    <pre id="css-output" class="hidden"></pre>
+    <pre id="json-output" class="hidden"></pre>
+    
+    <div id="validation-panel" class="hidden">
+      <div id="validation-stats" style="font-weight: bold; margin-bottom: 10px; color: #18a0fb;">Click "Validate" to compare design vs code.</div>
+      <div id="render-preview" style="position: absolute; left: -9999px; top: -9999px;"></div>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div>
+          <label>Figma Reference</label>
+          <canvas id="figma-canvas"></canvas>
+        </div>
+        <div>
+          <label>Rendered HTML/CSS</label>
+          <canvas id="rendered-canvas"></canvas>
+        </div>
+        <div>
+          <label>Visual Diff (Red = Discrepancy)</label>
+          <canvas id="diff-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="config-panel" class="hidden">
+      <div class="setting-group">
+        <label>Styling</label>
+        <select id="styling">
+          <option value="inline">Inline Styles</option>
+          <option value="modules">CSS Modules</option>
+          <option value="styled">Styled Components</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Routing</label>
+        <select id="routing">
+          <option value="useState">None (useState)</option>
+          <option value="react-router">React Router</option>
+          <option value="nextjs">Next.js App Router</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label>Animation</label>
+        <select id="animations">
+          <option value="framer-motion">Framer Motion</option>
+          <option value="gsap">GSAP</option>
+          <option value="css">CSS Transitions</option>
+        </select>
+      </div>
+      <button id="save-settings">Save & Apply</button>
+    </div>
+  </div>
+
+  <script>
+    let currentData = null;
+    let currentConfig = {};
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg.type === 'settings-loaded') {
+        currentConfig = msg.config;
+        Object.keys(currentConfig).forEach(key => {
+          const el = document.getElementById(key);
+          if (el) el.value = currentConfig[key];
+        });
+      } else if (msg.type === 'update-properties') {
+        currentData = msg.data;
+        render();
+      } else if (msg.type === 'validation-image') {
+        performValidation(msg);
+      }
+    };
+
+    function render() {
+      if (!currentData || currentData.length === 0) return;
+      document.getElementById('react-output').textContent = currentData[0].reactCode;
+      document.getElementById('css-output').textContent = currentData[0].css;
+      document.getElementById('json-output').textContent = JSON.stringify(currentData[0], null, 2);
+    }
+
+    document.getElementById('save-settings').onclick = () => {
+      const config = {
+        styling: document.getElementById('styling').value,
+        routing: document.getElementById('routing').value,
+        animations: document.getElementById('animations').value,
+      };
+      parent.postMessage({ pluginMessage: { type: 'save-settings', config } }, '*');
+    };
+
+    document.getElementById('validate-btn').onclick = () => {
+      setMode('validation');
+      document.getElementById('validation-stats').textContent = "Exporting Figma node...";
+      parent.postMessage({ pluginMessage: { type: 'validate-node' } }, '*');
+    };
+
+    async function performValidation(msg) {
+      const { bytes, width, height } = msg;
+      const figmaCanvas = document.getElementById('figma-canvas');
+      const renderedCanvas = document.getElementById('rendered-canvas');
+      const diffCanvas = document.getElementById('diff-canvas');
+      const preview = document.getElementById('render-preview');
+      const stats = document.getElementById('validation-stats');
+
+      stats.textContent = "Rendering code and comparing pixels...";
+
+      figmaCanvas.width = renderedCanvas.width = diffCanvas.width = width;
+      figmaCanvas.height = renderedCanvas.height = diffCanvas.height = height;
+
+      // 1. Draw Figma image
+      const figmaImg = new Image();
+      const blob = new Blob([bytes], { type: 'image/png' });
+      figmaImg.src = URL.createObjectURL(blob);
+      await new Promise(r => figmaImg.onload = r);
+      const fCtx = figmaCanvas.getContext('2d');
+      fCtx.drawImage(figmaImg, 0, 0);
+
+      // 2. Render HTML/CSS
+      // Extract the JSX part and convert to HTML
+      let jsx = currentData[0].reactCode.match(/return \(([\s\S]*)\);/)[1];
+      // Simple sanitization for preview
+      jsx = jsx.replace(/motion\./g, '').replace(/data-figma-id="[^"]*"/g, '').replace(/style=\{\{([\s\S]*?)\}\}/g, (m, p1) => {
+          return `style="${p1.replace(/(\w+):/g, (m, k) => k.replace(/[A-Z]/g, c => '-' + c.toLowerCase()) + ':').replace(/'/g, '').replace(/,/g, ';')}"`;
+      });
+
+      preview.innerHTML = `<div id="render-root" style="width:${width}px; height:${height}px; position:relative; overflow:hidden; background:white;">
+        ${jsx}
+      </div>`;
+      
+      const canvas = await html2canvas(preview.querySelector('#render-root'), { width, height, scale: 1, logging: false });
+      const rCtx = renderedCanvas.getContext('2d');
+      rCtx.drawImage(canvas, 0, 0);
+
+      // 3. PixelMatch
+      const img1 = fCtx.getImageData(0, 0, width, height);
+      const img2 = rCtx.getImageData(0, 0, width, height);
+      const diff = rCtx.createImageData(width, height);
+
+      const numDiffPixels = pixelmatch(img1.data, img2.data, diff.data, width, height, { threshold: 0.1 });
+      diffCanvas.getContext('2d').putImageData(diff, 0, 0);
+
+      const diffPercentage = (numDiffPixels / (width * height) * 100).toFixed(2);
+      stats.textContent = `Validation Complete: ${numDiffPixels} pixels differ (${diffPercentage}%)`;
+    }
+
+    function setMode(mode) {
+      const tabs = ['react', 'css', 'json', 'validation', 'config'];
+      tabs.forEach(t => {
+        document.getElementById(t + '-tab').classList.remove('active');
+        const panel = document.getElementById(t + '-output') || document.getElementById(t + '-panel');
+        if (panel) panel.classList.add('hidden');
+      });
+      document.getElementById(mode + '-tab').onclick(); // Trigger tab click UI logic
+    }
+
+    const allTabs = ['react', 'css', 'json', 'validation', 'config'];
+    allTabs.forEach(tab => {
+      document.getElementById(tab + '-tab').onclick = () => {
+        allTabs.forEach(t => {
+          document.getElementById(t + '-tab').classList.remove('active');
+          const panel = document.getElementById(t + '-output') || document.getElementById(t + '-panel');
+          if (panel) panel.classList.add('hidden');
+        });
+        document.getElementById(tab + '-tab').classList.add('active');
+        const activePanel = document.getElementById(tab + '-output') || document.getElementById(tab + '-panel');
+        if (activePanel) activePanel.classList.remove('hidden');
+      };
+    });
+  </script>
+</body>
+</html>

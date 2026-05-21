@@ -1,0 +1,24 @@
+{
+  "name": "figma-property-extractor",
+  "version": "1.0.0",
+  "description": "Extracts all properties from selected Figma nodes into JSON.",
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --outfile=dist/code.js && cp src/ui.html dist/ui.html",
+    "watch": "concurrently \"esbuild src/code.ts --bundle --outfile=dist/code.js --watch\" \"fswatch -o src/ui.html | xargs -n1 -I{} cp src/ui.html dist/ui.html\"",
+    "cli": "ts-node src/cli.ts"
+  },
+  "dependencies": {
+    "@types/pixelmatch": "^5.2.6",
+    "axios": "^1.6.7",
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "pixelmatch": "^7.2.0",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.83.0",
+    "esbuild": "^0.20.1",
+    "typescript": "^5.3.3"
+  }
+}
