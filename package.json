@@ -1,10 +1,15 @@
 {
-  "name": "figma-property-extractor",
+  "name": "figmake",
   "version": "1.0.0",
-  "description": "Extracts all properties from selected Figma nodes into JSON.",
+  "description": "Advanced Figma to React conversion pipeline",
+  "bin": {
+    "figmake": "./dist/cli.js"
+  },
   "scripts": {
-    "build": "esbuild src/code.ts --bundle --outfile=dist/code.js && cp src/ui.html dist/ui.html",
-    "watch": "concurrently \"esbuild src/code.ts --bundle --outfile=dist/code.js --watch\" \"fswatch -o src/ui.html | xargs -n1 -I{} cp src/ui.html dist/ui.html\"",
+    "build:plugin": "esbuild src/code.ts --bundle --outfile=dist/code.js && cp src/ui.html dist/ui.html",
+    "build:cli": "esbuild src/cli.ts --bundle --platform=node --outfile=dist/cli.js",
+    "build": "npm run build:plugin && npm run build:cli",
+    "watch": "concurrently \"npm run build:plugin -- --watch\" \"fswatch -o src/ui.html | xargs -n1 -I{} cp src/ui.html dist/ui.html\"",
     "cli": "ts-node src/cli.ts"
   },
   "dependencies": {

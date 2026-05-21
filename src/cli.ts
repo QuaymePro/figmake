@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
