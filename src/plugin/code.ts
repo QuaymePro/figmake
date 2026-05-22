@@ -1,13 +1,17 @@
-import { figmaToCSS } from "./figmaToCSS";
-import { generateReactComponent } from "./generateReactCode";
-import { extractAnimations } from "./extractAnimations";
-import { DEFAULT_CONFIG, PluginConfig } from "./config";
+import { figmaToCSS } from "../core/converters/layoutConverter";
+import { generateReactComponent } from "../core/generators/reactGenerator";
+import { extractAnimations } from "../core/extractors/animationExtractor";
+import { DEFAULT_CONFIG, PluginConfig } from "../core/config";
+import { detectCollisions } from "../core/utils/collisionDetector";
+import { calculateMetrics } from "../core/utils/codeMetrics";
+import { extractDesignTokens } from "../design-system/extractDesignTokens";
+import { generateLockfile } from "../vibecode-guard/generateLockfile";
+import { generatePromptContext } from "../vibecode-guard/generatePromptContext";
 
 let currentConfig: PluginConfig = DEFAULT_CONFIG;
 
-figma.showUI(__html__, { width: 600, height: 750 });
+figma.showUI(__html__, { width: 600, height: 800 });
 
-// Load settings on start
 figma.clientStorage.getAsync("plugin_settings").then((settings) => {
   if (settings) {
     currentConfig = { ...DEFAULT_CONFIG, ...settings };
@@ -27,6 +31,11 @@ figma.ui.onmessage = async (msg) => {
       const bytes = await node.exportAsync({ format: "PNG", constraint: { type: "SCALE", value: 1 } });
       figma.ui.postMessage({ type: "validation-image", bytes, width: node.width, height: node.height });
     }
+  } else if (msg.type === "generate-guard") {
+    const tokens = extractDesignTokens([figma.root]);
+    const lockfile = generateLockfile(figma.root.name, figma.fileKey || 'local', tokens);
+    const promptContext = generatePromptContext(tokens);
+    figma.ui.postMessage({ type: "guard-data", lockfile, promptContext, tokens });
   }
 };
 
@@ -37,35 +46,29 @@ function extractProperties(node: BaseNode): any {
     type: node.type,
   };
 
-  // Prototype Interactions
   if ("reactions" in node) {
     props.reactions = clone((node as any).reactions);
     props.animations = extractAnimations(node, figma.getNodeById);
   }
 
-  // Geometry
   if ("x" in node) props.x = node.x;
   if ("y" in node) props.y = node.y;
   if ("width" in node) props.width = node.width;
   if ("height" in node) props.height = node.height;
   if ("rotation" in node) props.rotation = node.rotation;
 
-  // Visibility & Blend
   if ("visible" in node) props.visible = node.visible;
   if ("opacity" in node) props.opacity = node.opacity;
   if ("blendMode" in node) props.blendMode = node.blendMode;
 
-  // Constraints
   if ("constraints" in node) props.constraints = node.constraints;
 
-  // Corner Radius
   if ("cornerRadius" in node) props.cornerRadius = node.cornerRadius === figma.mixed ? "mixed" : node.cornerRadius;
   if ("topLeftRadius" in node) props.topLeftRadius = node.topLeftRadius;
   if ("topRightRadius" in node) props.topRightRadius = node.topRightRadius;
   if ("bottomLeftRadius" in node) props.bottomLeftRadius = node.bottomLeftRadius;
   if ("bottomRightRadius" in node) props.bottomRightRadius = node.bottomRightRadius;
 
-  // Auto Layout
   if ("layoutMode" in node) props.layoutMode = node.layoutMode;
   if ("primaryAxisSizingMode" in node) props.primaryAxisSizingMode = node.primaryAxisSizingMode;
   if ("counterAxisSizingMode" in node) props.counterAxisSizingMode = node.counterAxisSizingMode;
@@ -77,7 +80,6 @@ function extractProperties(node: BaseNode): any {
   if ("paddingBottom" in node) props.paddingBottom = node.paddingBottom;
   if ("itemSpacing" in node) props.itemSpacing = node.itemSpacing;
 
-  // Appearance
   if ("fills" in node) props.fills = clone(node.fills);
   if ("strokes" in node) props.strokes = clone(node.strokes);
   if ("strokeWeight" in node) props.strokeWeight = node.strokeWeight;
@@ -87,7 +89,6 @@ function extractProperties(node: BaseNode): any {
   if ("dashPattern" in node) props.dashPattern = node.dashPattern;
   if ("effects" in node) props.effects = clone(node.effects);
 
-  // Text Properties
   if (node.type === "TEXT") {
     const textNode = node as TextNode;
     props.characters = textNode.characters;
@@ -101,12 +102,10 @@ function extractProperties(node: BaseNode): any {
     props.textCase = textNode.textCase;
   }
 
-  // Recursion for children
   if ("children" in node) {
     props.children = node.children.map(child => extractProperties(child));
   }
 
-  // Generate CSS and React Code
   props.css = figmaToCSS(node);
   const reactResult = generateReactComponent(node, { getNodeById: figma.getNodeById, config: currentConfig });
   props.reactCode = reactResult.code;
@@ -116,37 +115,20 @@ function extractProperties(node: BaseNode): any {
   return props;
 }
 
-// Helper to clone Figma properties (they are often read-only or have hidden props)
 function clone(val: any): any {
   if (val === figma.mixed) return "mixed";
   const type = typeof val;
-  if (val === null) {
-    return null;
-  } else if (
-    type === "undefined" ||
-    type === "number" ||
-    type === "string" ||
-    type === "boolean"
-  ) {
-    return val;
-  } else if (type === "object") {
-    if (val instanceof Array) {
-      return val.map(x => clone(x));
-    } else if (val instanceof Uint8Array) {
-      return Array.from(val);
-    } else {
-      const ret: any = {};
-      for (const key in val) {
-        ret[key] = clone(val[key]);
-      }
-      return ret;
-    }
+  if (val === null) return null;
+  if (type === "undefined" || type === "number" || type === "string" || type === "boolean") return val;
+  if (type === "object") {
+    if (val instanceof Array) return val.map(x => clone(x));
+    if (val instanceof Uint8Array) return Array.from(val);
+    const ret: any = {};
+    for (const key in val) ret[key] = clone(val[key]);
+    return ret;
   }
   return val;
 }
-
-import { detectCollisions } from "./collisionDetector";
-import { calculateMetrics } from "./codeMetrics";
 
 function updateSelection() {
   const selection = figma.currentPage.selection;
@@ -154,13 +136,8 @@ function updateSelection() {
   const data = selection.map(node => extractProperties(node));
   const metrics = calculateMetrics(data);
   metrics.collisions = collisions.length;
-
-  console.log("Extracted Properties:", data);
   figma.ui.postMessage({ type: "update-properties", data, metrics, collisions });
 }
 
-// Listen for selection changes
 figma.on("selectionchange", updateSelection);
-
-// Initial run
 updateSelection();

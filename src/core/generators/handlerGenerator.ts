@@ -1,13 +1,11 @@
-import { MappedInteraction } from "./extractAnimations";
+import { MappedInteraction } from "../extractors/animationExtractor";
+import { PluginConfig } from "../config";
 
 export interface GeneratedHandlers {
   functionDeclarations: string[];
-  propMappings: Record<string, string>; // Maps trigger type to handler function name
+  propMappings: Record<string, string>;
 }
 
-/**
- * Sanitizes a name to be a valid JavaScript identifier.
- */
 function sanitizeName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "_").replace(/^([0-9])/, "_$1");
 }
@@ -19,10 +17,7 @@ function toPascalCase(name: string): string {
     .join("");
 }
 
-/**
- * Generates React event handlers from Figma interactions.
- */
-export function generateHandlers(nodeId: string, nodeName: string, interactions: MappedInteraction[]): GeneratedHandlers {
+export function generateHandlers(nodeId: string, nodeName: string, interactions: MappedInteraction[], config?: PluginConfig): GeneratedHandlers {
   const functionDeclarations: string[] = [];
   const propMappings: Record<string, string> = {};
 
@@ -38,25 +33,26 @@ export function generateHandlers(nodeId: string, nodeName: string, interactions:
     if (actionType === "NODE" || actionType === "NAVIGATE") {
       handlerName = `handleNavigate${baseName}`;
       const dest = interaction.destinationName || interaction.destinationId || "Unknown";
-      body = `    // Navigation to ${dest}\n    console.log('Navigating to: ${dest}');\n    // setActiveView('${toPascalCase(dest)}');`;
+      
+      if (config?.routing === 'nextjs') {
+        body = `    router.push('/${dest.toLowerCase().replace(/\s+/g, '-')}');`;
+      } else if (config?.routing === 'react-router') {
+        body = `    navigate('/${dest.toLowerCase().replace(/\s+/g, '-')}');`;
+      } else {
+        body = `    setActiveView('${toPascalCase(dest)}');`;
+      }
     } else if (actionType === "URL") {
       handlerName = `handleOpenLink${baseName}`;
       body = `    window.open('${interaction.destinationId || "#"}', '_blank');`;
-    } else if (actionType === "SET_VARIABLE") {
-      handlerName = `handleUpdateState${baseName}`;
-      body = `    console.log('Update variable interaction detected');\n    // setVariable(prev => !prev);`;
     } else {
       handlerName = `handleInteraction${baseName}`;
-      body = `    console.log('${interaction.trigger} triggered for ${nodeName}');`;
+      body = `    console.log('${interaction.trigger} triggered');`;
     }
 
     if (handlerName) {
       functionDeclarations.push(`  const ${handlerName} = () => {\n${body}\n  };`);
-      
       const reactProp = mapTriggerToReactProp(trigger);
-      if (reactProp) {
-        propMappings[reactProp] = handlerName;
-      }
+      if (reactProp) propMappings[reactProp] = handlerName;
     }
   });
 
@@ -66,7 +62,7 @@ export function generateHandlers(nodeId: string, nodeName: string, interactions:
 function mapTriggerToReactProp(trigger: string): string | null {
   const map: Record<string, string> = {
     click: "onClick",
-    hover: "onMouseEnter", // whileHover is handled by motion, but we might want mouseEnter
+    hover: "onMouseEnter",
     mouseEnter: "onMouseEnter",
     mouseLeave: "onMouseLeave",
     press: "onMouseDown",

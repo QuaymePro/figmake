@@ -29,6 +29,8 @@
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; transition: opacity 0.3s; opacity: 0; pointer-events: none;
     }
     .collision-banner { background: #fffbeb; border: 1px solid #fde68a; padding: 8px; font-size: 11px; margin-bottom: 8px; color: #92400e; border-radius: 4px; }
+    .guard-section { margin-bottom: 16px; }
+    .guard-label { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #666; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -36,12 +38,9 @@
 </head>
 <body>
   <div class="controls">
-    <h2>Figmake Pro v2.0.0</h2>
+    <h2>Figmake v3.0.0</h2>
     <div class="button-group">
-      <button id="validate-btn">Validate</button>
-      <div style="position: relative;">
-        <button id="copy-btn">Copy Full File</button>
-      </div>
+      <button id="copy-btn">Copy</button>
       <button id="zip-btn">Export .ZIP</button>
     </div>
   </div>
@@ -51,21 +50,34 @@
   <div class="tabs">
     <div id="react-tab" class="tab active">React</div>
     <div id="css-tab" class="tab">CSS</div>
-    <div id="json-tab" class="tab">JSON</div>
-    <div id="validation-tab" class="tab">Validation</div>
+    <div id="guard-tab" class="tab">🛡️ Guard</div>
     <div id="config-tab" class="tab">Settings</div>
   </div>
   
   <div id="output-container">
     <pre id="react-output"></pre>
     <pre id="css-output" class="hidden"></pre>
-    <pre id="json-output" class="hidden"></pre>
-    <div id="validation-panel" class="hidden">
-      <div id="validation-stats" style="font-weight: bold; margin-bottom: 10px; color: #18a0fb;">Click "Validate" to compare.</div>
-      <canvas id="figma-canvas"></canvas>
-      <canvas id="rendered-canvas"></canvas>
-      <canvas id="diff-canvas"></canvas>
+    
+    <div id="guard-panel" class="hidden">
+       <div class="guard-section">
+         <div class="guard-label">AI Agent Guardrails</div>
+         <div class="button-group">
+           <button id="gen-lockfile-btn">Generate Lockfile</button>
+           <button id="copy-prompt-btn">Copy Prompt Context</button>
+         </div>
+       </div>
+       <div class="guard-section">
+         <label class="guard-label">Agent Specific Rules</label>
+         <select id="agent-selector" style="width: 100%; margin-bottom: 8px;">
+           <option value="cursor">Cursor (.mdc)</option>
+           <option value="claude">Claude (.md)</option>
+           <option value="copilot">Copilot (.md)</option>
+         </select>
+         <button id="gen-rules-btn">Generate Rules</button>
+       </div>
+       <pre id="guard-preview" style="background: #f8f9fa; padding: 8px; border-radius: 4px; border: 1px solid #ddd;"></pre>
     </div>
+
     <div id="config-panel" class="hidden">
        <div>
          <label>Image Export</label>
@@ -83,11 +95,8 @@
   <div class="status-bar">
     <div class="status-item">📄 <span id="stat-files">0</span> files</div>
     <div class="status-item">📝 <span id="stat-lines">0</span> lines</div>
-    <div class="status-item">⚛️ <span id="stat-elements">0</span> elements</div>
-    <div class="status-item">🎨 <span id="stat-styles">0</span> styles</div>
     <div class="status-item">🎬 <span id="stat-anims">0</span> anims</div>
-    <div class="status-item">🔧 <span id="stat-handlers">0</span> handlers</div>
-    <div id="collision-count" style="grid-column: span 3; border-top: 1px solid #eee; padding-top: 4px; color: #d14;">⚠️ 0 collisions</div>
+    <div id="guard-status" style="grid-column: span 3; border-top: 1px solid #eee; padding-top: 4px; color: #18a0fb;">🛡️ Vibecode Guard Ready</div>
   </div>
 
   <div id="toast" class="toast">✓ Copied to clipboard</div>
@@ -96,6 +105,7 @@
     let currentData = null;
     let currentMetrics = null;
     let currentCollisions = [];
+    let guardData = null;
 
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
@@ -106,6 +116,10 @@
         currentMetrics = msg.metrics;
         currentCollisions = msg.collisions;
         updateUI();
+      } else if (msg.type === 'guard-data') {
+        guardData = msg;
+        document.getElementById('guard-preview').textContent = msg.lockfile;
+        showToast("✓ Guard data generated");
       }
     };
 
@@ -113,37 +127,32 @@
       if (!currentData) return;
       document.getElementById('react-output').textContent = currentData[0].reactCode;
       document.getElementById('css-output').textContent = currentData[0].css;
-      document.getElementById('json-output').textContent = JSON.stringify(currentData[0], null, 2);
 
       // Metrics
       document.getElementById('stat-files').textContent = currentMetrics.fileCount;
       document.getElementById('stat-lines').textContent = currentMetrics.totalLines;
-      document.getElementById('stat-elements').textContent = currentMetrics.jsxElements;
-      document.getElementById('stat-styles').textContent = currentMetrics.styleProperties;
       document.getElementById('stat-anims').textContent = currentMetrics.animations;
-      document.getElementById('stat-handlers').textContent = currentMetrics.handlers;
-      
-      const collBanner = document.getElementById('collision-banner');
-      if (currentCollisions.length > 0) {
-         collBanner.textContent = `⚠️ ${currentCollisions.length} name collisions detected. Using suggestions.`;
-         collBanner.classList.remove('hidden');
-         document.getElementById('collision-count').textContent = `⚠️ ${currentCollisions.length} collisions`;
-      } else {
-         collBanner.classList.add('hidden');
-         document.getElementById('collision-count').textContent = `✅ No collisions`;
-      }
     }
 
-    document.getElementById('copy-btn').onclick = () => {
-      const text = document.getElementById('react-output').textContent;
+    document.getElementById('gen-lockfile-btn').onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'generate-guard' } }, '*');
+    };
+
+    document.getElementById('copy-prompt-btn').onclick = () => {
+      if (!guardData) return showToast("⚠️ Generate Guard first");
+      const text = guardData.promptContext;
+      copyText(text);
+      showToast("✓ Prompt context copied");
+    };
+
+    function copyText(text) {
       const textArea = document.createElement("textarea");
       textArea.value = text;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand("copy");
       document.body.removeChild(textArea);
-      showToast(`✓ Copied ${currentMetrics.totalLines} lines`);
-    };
+    }
 
     function showToast(text) {
       const toast = document.getElementById('toast');
@@ -152,14 +161,7 @@
       setTimeout(() => toast.style.opacity = '0', 2000);
     }
 
-    // Short cut Ctrl+Shift+C
-    window.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && e.code === 'KeyC') {
-         document.getElementById('copy-btn').click();
-      }
-    });
-
-    const tabs = ['react', 'css', 'json', 'validation', 'config'];
+    const tabs = ['react', 'css', 'guard', 'config'];
     tabs.forEach(tab => {
       document.getElementById(tab + '-tab').onclick = () => {
         tabs.forEach(t => {
@@ -173,20 +175,26 @@
       };
     });
 
+    document.getElementById('copy-btn').onclick = () => {
+       const text = document.getElementById('react-output').textContent;
+       copyText(text);
+       showToast("✓ Copied component");
+    };
+
     document.getElementById('save-settings').onclick = () => {
        const config = { imageMode: document.getElementById('imageMode').value };
        parent.postMessage({ pluginMessage: { type: 'save-settings', config } }, '*');
     };
     
     document.getElementById('zip-btn').onclick = async () => {
-      // Simplistic ZIP for now
       const zip = new JSZip();
       currentData.forEach(node => {
         zip.file(`${node.name}.tsx`, node.reactCode);
       });
-      // Add a README.md (logic would call generateReadme)
       zip.file("README.md", "# Figmake Export\nGenerated components.");
-      
+      if (guardData) {
+        zip.file(".figmake.lock", guardData.lockfile);
+      }
       const blob = await zip.generateAsync({ type: "blob" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
