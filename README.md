@@ -1,80 +1,47 @@
-# Figmake 🚀
+# Figmake
 
-> **Design-to-code compiler with AI agent guardrails.**  
+> Design-to-code compiler with AI agent guardrails.  
 > Extract Figma designs as pixel-perfect React code. Generate design lockfiles that keep vibecoding agents from hallucinating styles.
 
----
-
-## 🛡️ The Vibecode Guard
+## Why Figmake?
 
 AI coding agents are powerful but they hallucinate design. Colors drift. Spacing breaks. Fonts get replaced. Your carefully crafted design system dissolves with every prompt.
 
 Figmake extracts the **ground truth** from your Figma files and generates:
 
-1.  **Pixel-perfect React components** with exact styles (no rounding, no opinionated scales).
-2.  **Design lockfiles** (`.figmake.lock`) that any AI agent can reference.
-3.  **Prompt context** and **Agent Rules** (Cursor, Claude, Copilot) that force agents to respect your design system.
+1. **Pixel-perfect React components** with exact styles
+2. **Design lockfiles** that any AI agent can reference
+3. **Prompt context** that forces agents to respect your design system
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Installation
+### Figma Plugin
+1. Install from Figma Community: [link]
+2. Select any frame
+3. Copy React code or export full project
 
+### CLI
 ```bash
-# Clone the repository
-git clone https://github.com/QuaymePro/figmake.git
-cd figmake
-
-# Install dependencies
-npm install
-
-# Build and Link the CLI globally
-npm run build
-npm link
+npx figmake init
+npx figmake export "https://figma.com/file/..." --token YOUR_TOKEN
+npx figmake lockfile  # Generate design constraints for AI agents
 ```
 
-### 2. Figma Plugin Setup
-1.  Open Figma Desktop.
-2.  Go to **Plugins** -> **Development** -> **Import plugin from manifest...**.
-3.  Select `src/plugin/manifest.json`.
+With Cursor/Claude/Copilot
 
----
-
-## 💻 CLI Usage
-
-### Export Designs
-Extract top-level frames into React components:
 ```bash
-figmake export --url "FIGMA_FILE_URL" --token "YOUR_PAT" --output "./src/components"
+figmake guard --output .cursor/rules/design-system.mdc
+# Now your AI agent won't hallucinate styles
 ```
 
-### Generate Design Lockfile
-Create a source of truth for your AI agents:
-```bash
-figmake lockfile --url "FIGMA_FILE_URL" --token "YOUR_PAT"
-```
+## Features
 
-### AI Agent Guardrails
-Generate rules for your favorite AI editor:
-```bash
-figmake guard --agent cursor  # Generates .cursor/rules/design-system.mdc
-figmake guard --agent prompt  # Outputs context to paste into any chat
-```
-
----
-
-## ✨ Features
-
--   ✅ **Pixel-perfect conversion:** Auto Layout → Flexbox/Grid with exact values.
--   ✅ **Framer Motion animations:** Extracted directly from Figma prototypes.
--   ✅ **Event handlers:** Functional logic for navigation and state updates.
--   ✅ **Design token extraction:** Palette, typography, spacing, and shadows.
--   ✅ **AI Agent Lockfiles:** Compatible with Cursor, Claude, Copilot, and more.
--   ✅ **Visual Validation:** In-plugin pixel-diffing comparison.
-
----
-
-## 🤝 Contributing
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## 📄 License
-MIT License. Built with ❤️ for the design and developer community.
+· ✅ Pixel-perfect conversion (no rounding, no opinionated scales)
+· ✅ Auto Layout → Flexbox/Grid with exact values
+· ✅ Framer Motion animations from Figma prototypes
+· ✅ Event handlers for interactive elements
+· ✅ Design token extraction (colors, typography, spacing, shadows)
+· ✅ AI agent lockfiles (Cursor, Claude, Copilot, Windsurf)
+· ✅ Component collision detection
+· ✅ Code metrics and complexity analysis
+· ✅ README generation on export
