@@ -15,17 +15,42 @@ Figmake extracts the **ground truth** from your Figma files and generates:
 
 ## Quick Start
 
-### Figma Plugin
-1. Install from Figma Community: [link]
-2. Select any frame
-3. Copy React code or export full project
+![Figmake in action](https://raw.githubusercontent.com/QuaymePro/figmake/main/docs/demo.gif)
 
-### CLI
+### 1. Install Figmake
 ```bash
-npx figmake init
-npx figmake export "https://figma.com/file/..." --token YOUR_TOKEN
-npx figmake lockfile  # Generate design constraints for AI agents
+npm install -g figmake-pro
 ```
+
+### 2. Try the Demo (No Token Needed)
+```bash
+figmake --demo
+```
+
+### 3. Export Your Own Project
+Get your Figma Personal Access Token from **Account Settings > Personal Access Tokens**.
+
+```bash
+# Export components from a Figma file
+figmake export "https://figma.com/file/S6D8yK17S2M0T2E7O1X5E6/Figmake-Demo-Library" --token YOUR_TOKEN
+```
+
+## Troubleshooting
+
+### Token Issues
+- **Error: 403 Forbidden**: Ensure your token has "Read-only" or "Read/Write" permissions for the file.
+- **Error: 404 Not Found**: Check if the Figma URL is correct and the file key is valid.
+
+### Export Issues
+- **Missing Styles**: Ensure all elements are inside a Frame or Component. Groups are exported as containers but may not preserve all layout properties as well as Frames.
+- **Image Placeholders**: By default, Figmake uses placeholders for SVGs and Vectors. To change this, update your configuration.
+
+## Examples
+
+Check the [examples/](./examples) directory for:
+- [Basic React App](./examples/react-basic)
+- [Next.js App Router](./examples/nextjs-app)
+- [Sample Figma Library](./examples/figma-sample.md)
 
 With Cursor/Claude/Copilot
 

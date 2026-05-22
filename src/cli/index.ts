@@ -10,6 +10,7 @@ import { generateCursorRules } from '../vibecode-guard/generateCursorRules';
 import { generateClaudeRules } from '../vibecode-guard/generateClaudeRules';
 import { generatePromptContext } from '../vibecode-guard/generatePromptContext';
 import dotenv from 'dotenv';
+import { MOCK_FIGMA_FILE } from './demoData';
 
 dotenv.config();
 
@@ -18,7 +19,16 @@ const program = new Command();
 program
   .name('figmake')
   .description('Design-to-code compiler with AI agent guardrails')
-  .version('3.0.0');
+  .version('3.0.0')
+  .option('--demo', 'Generate a sample output without needing a Figma token')
+  .action(async (options) => {
+    if (options.demo) {
+      console.log('🚀 Running demo mode...');
+      await runDemo('./figmake-demo');
+      return;
+    }
+    program.help();
+  });
 
 program
   .command('export')
@@ -114,6 +124,29 @@ async function fetchFigmaFile(fileKey: string, token: string) {
     headers: { 'X-Figma-Token': token }
   });
   return response.data;
+}
+
+async function runDemo(output: string) {
+  try {
+    const fileData = MOCK_FIGMA_FILE;
+    const nodeMap = buildNodeMap(fileData.document);
+    const getNodeById = (id: string) => nodeMap.get(id);
+
+    const firstPage = fileData.document.children[0];
+    const frames = (firstPage as any).children.filter((c: any) => c.type === 'FRAME' || c.type === 'COMPONENT');
+
+    await fs.ensureDir(output);
+    for (const frame of frames) {
+      console.log(`📦 Generating demo component: ${frame.name}...`);
+      const { files } = generateReactComponent(frame, { getNodeById });
+      for (const [filename, content] of Object.entries(files)) {
+        await fs.writeFile(path.join(output, filename), content);
+      }
+    }
+    console.log(`✅ Demo complete! Files generated in ${output}`);
+  } catch (e: any) {
+    console.error('❌ Demo Error:', e.message);
+  }
 }
 
 function buildNodeMap(root: any) {
