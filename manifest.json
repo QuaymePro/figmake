@@ -1,7 +1,8 @@
 {
-  "name": "Figma Property Extractor",
-  "id": "figma-property-extractor",
+  "name": "Figmake Pro",
+  "id": "figmake",
   "api": "1.0.0",
+  "version": "2.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
   "editorType": ["figma"]

@@ -1,4 +1,5 @@
 import React from "react";
+import { handleImage, ImageExportConfig } from "./imageExporter";
 
 /**
  * Converts Figma color (0-1) and alpha to CSS rgba string.
@@ -13,8 +14,13 @@ export function figmaColorToCSS(color: any, opacity: number = 1): string {
 /**
  * Extracts style properties from a Figma node and returns a React.CSSProperties object.
  */
-export function extractNodeStyles(node: any): React.CSSProperties {
+export function extractNodeStyles(node: any, config?: any): React.CSSProperties {
   const styles: any = {};
+  const imageConfig: ImageExportConfig = {
+    mode: config?.imageMode || 'placeholder',
+    maxBase64Size: 51200,
+    placeholderStyle: 'blurred'
+  };
 
   // 1. Opacity
   if (node.opacity !== undefined && node.opacity !== 1) {
@@ -49,20 +55,21 @@ export function extractNodeStyles(node: any): React.CSSProperties {
   if (node.fills && Array.isArray(node.fills) && node.fills.length > 0) {
     const visibleFills = node.fills.filter((f: any) => f.visible !== false);
     if (visibleFills.length > 0) {
-      const fill = visibleFills[0]; // Simplify to primary fill for now, or stack them
+      const fill = visibleFills[0];
       if (fill.type === "SOLID") {
         styles.backgroundColor = figmaColorToCSS(fill.color, fill.opacity);
+      } else if (fill.type === "IMAGE") {
+        const { style: imageStyle, comment } = handleImage(fill, imageConfig);
+        Object.assign(styles, imageStyle);
+        if (comment) {
+           (styles as any).__comment = comment;
+        }
       } else if (fill.type === "GRADIENT_LINEAR") {
         styles.background = generateLinearGradient(fill);
       } else if (fill.type === "GRADIENT_RADIAL") {
         styles.background = generateRadialGradient(fill);
       } else if (fill.type === "GRADIENT_ANGULAR") {
         styles.background = generateConicGradient(fill);
-      } else if (fill.type === "IMAGE") {
-        styles.backgroundImage = `url(https://via.placeholder.com/150)`; // Placeholder for image data
-        styles.backgroundSize = fill.scaleMode === "FILL" ? "cover" : fill.scaleMode === "FIT" ? "contain" : "auto";
-        styles.backgroundRepeat = fill.scaleMode === "TILE" ? "repeat" : "no-repeat";
-        styles.backgroundPosition = "center";
       }
     }
   }
@@ -120,8 +127,6 @@ export function extractNodeStyles(node: any): React.CSSProperties {
 }
 
 function generateLinearGradient(fill: any): string {
-  // Simplified: In a real plugin, we'd use gradientTransform to calculate angle.
-  // For now, assume a standard vertical gradient if transform is missing or complex.
   const stops = fill.gradientStops.map((stop: any) => {
     return `${figmaColorToCSS(stop.color, stop.color.a)} ${Math.round(stop.position * 100)}%`;
   }).join(", ");

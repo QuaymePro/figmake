@@ -6,6 +6,7 @@ export interface PluginConfig {
   pattern: 'functional' | 'arrow';
   naming: 'PascalCase' | 'kebab-case' | 'camelCase';
   exportFormat: 'single' | 'multiple' | 'barrel';
+  imageMode: 'placeholder' | 'base64' | 'url' | 'none';
 }
 
 export const DEFAULT_CONFIG: PluginConfig = {
@@ -16,4 +17,5 @@ export const DEFAULT_CONFIG: PluginConfig = {
   pattern: 'arrow',
   naming: 'PascalCase',
   exportFormat: 'multiple',
+  imageMode: 'placeholder',
 };

@@ -145,11 +145,18 @@ function clone(val: any): any {
   return val;
 }
 
+import { detectCollisions } from "./collisionDetector";
+import { calculateMetrics } from "./codeMetrics";
+
 function updateSelection() {
   const selection = figma.currentPage.selection;
+  const collisions = detectCollisions(selection);
   const data = selection.map(node => extractProperties(node));
+  const metrics = calculateMetrics(data);
+  metrics.collisions = collisions.length;
+
   console.log("Extracted Properties:", data);
-  figma.ui.postMessage({ type: "update-properties", data });
+  figma.ui.postMessage({ type: "update-properties", data, metrics, collisions });
 }
 
 // Listen for selection changes
