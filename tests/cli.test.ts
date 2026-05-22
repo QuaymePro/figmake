@@ -11,6 +11,7 @@ describe('figmake-pro', () => {
   it('should have a built plugin', () => {
     expect(existsSync(resolve(__dirname, '../dist/plugin/code.js'))).toBe(true);
     expect(existsSync(resolve(__dirname, '../dist/plugin/ui.html'))).toBe(true);
+    expect(existsSync(resolve(__dirname, '../dist/plugin/manifest.json'))).toBe(true);
   });
 
   it('should have a valid package.json', () => {

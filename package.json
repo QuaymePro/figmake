@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "npm run build:plugin && npm run build:cli",
-    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js",
+    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js && cp src/plugin/ui.html dist/plugin/ui.html && cp src/plugin/manifest.json dist/plugin/manifest.json",
     "build:cli": "esbuild src/cli/index.ts --bundle --platform=node --outfile=dist/cli/index.js",
     "test": "vitest --passWithNoTests",
     "lint": "eslint src/",
