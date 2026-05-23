@@ -13,9 +13,12 @@
     "claude"
   ],
   "license": "MIT",
-  "repository": "github.com/QuaymePro/figmake",
+  "repository": {
+    "type": "git",
+    "url": "github.com/QuaymePro/figmake"
+  },
   "bin": {
-    "figmake": "./dist/cli/index.js"
+    "figmake": "dist/cli/index.js"
   },
   "scripts": {
     "build": "npm run build:plugin && npm run build:cli",
