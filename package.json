@@ -1,8 +1,17 @@
 {
   "name": "figmake-pro",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Design-to-code compiler with AI agent guardrails. Extract Figma designs as pixel-perfect React code with enforced design tokens.",
-  "keywords": ["figma", "react", "design-to-code", "design-tokens", "ai-coding", "vibecoding", "cursor", "claude"],
+  "keywords": [
+    "figma",
+    "react",
+    "design-to-code",
+    "design-tokens",
+    "ai-coding",
+    "vibecoding",
+    "cursor",
+    "claude"
+  ],
   "license": "MIT",
   "repository": "github.com/QuaymePro/figmake",
   "bin": {
