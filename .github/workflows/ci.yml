@@ -46,6 +46,8 @@ jobs:
           echo "Version check passed: v$TAG_VERSION"
       - run: npm ci
       - run: npm run build
+      - name: Configure npm authentication
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
       - name: Publish to npm
         run: npm publish --access public
         env:
