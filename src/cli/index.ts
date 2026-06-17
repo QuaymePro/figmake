@@ -1,162 +1,89 @@
 #!/usr/bin/env node
-import axios from 'axios';
-import fs from 'fs-extra';
-import path from 'path';
-import { Command } from 'commander';
-import { generateReactComponent } from '../core/generators/reactGenerator';
-import { extractDesignTokens } from '../design-system/extractDesignTokens';
-import { generateLockfile } from '../vibecode-guard/generateLockfile';
-import { generateCursorRules } from '../vibecode-guard/generateCursorRules';
-import { generateClaudeRules } from '../vibecode-guard/generateClaudeRules';
-import { generatePromptContext } from '../vibecode-guard/generatePromptContext';
 import dotenv from 'dotenv';
-import { MOCK_FIGMA_FILE } from './demoData';
+import { showBanner } from './banner';
+import { findCommand, runConvert } from './commands';
+import { error, clearScreen } from './output';
 
 dotenv.config();
 
-const program = new Command();
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
 
-program
-  .name('figmake')
-  .description('Design-to-code compiler with AI agent guardrails')
-  .version('3.0.0')
-  .option('--demo', 'Generate a sample output without needing a Figma token')
-  .action(async (options) => {
-    if (options.demo) {
-      console.log('🚀 Running demo mode...');
-      await runDemo('./figmake-demo');
-      return;
-    }
-    program.help();
-  });
+  // If arguments are passed, run command directly and exit
+  if (args.length > 0) {
+    const firstArg = args[0].toLowerCase();
 
-program
-  .command('export')
-  .description('Export Figma frames to React components')
-  .requiredOption('-u, --url <url>', 'Figma file URL')
-  .requiredOption('-t, --token <token>', 'Figma Personal Access Token')
-  .option('-o, --output <dir>', 'Output directory', './output')
-  .action(async (options) => {
-    const { url, token, output } = options;
-    const fileKey = extractFileKey(url);
-    if (!fileKey) return console.error('Invalid URL');
+    /* ── Direct convert mode: "figmake convert <url> --token <tok>" ── */
+    if (firstArg === 'convert') {
+      const url = args[1];
+      const tokenIdx = args.indexOf('--token');
+      const token = tokenIdx !== -1 ? args[tokenIdx + 1] : null;
+      const outputIdx = args.indexOf('--output');
+      const output = outputIdx !== -1 ? args[outputIdx + 1] : './figmake-output';
 
-    try {
-      const fileData = await fetchFigmaFile(fileKey, token);
-      const nodeMap = buildNodeMap(fileData.document);
-      const getNodeById = (id: string) => nodeMap.get(id);
-
-      const firstPage = fileData.document.children[0];
-      const frames = firstPage.children.filter((c: any) => c.type === 'FRAME' || c.type === 'COMPONENT');
-
-      await fs.ensureDir(output);
-      for (const frame of frames) {
-        console.log(`📦 Generating ${frame.name}...`);
-        const { files } = generateReactComponent(frame, { getNodeById });
-        for (const [filename, content] of Object.entries(files)) {
-          await fs.writeFile(path.join(output, filename), content);
-        }
+      if (!url) {
+        console.log('\n \u2717 Error: No Figma URL provided');
+        console.log('   Usage: figmake convert <figma-url> --token <token> [--output <dir>]\n');
+        process.exit(1);
       }
-      console.log('✅ Export complete!');
-    } catch (e: any) {
-      console.error('❌ Error:', e.message);
-    }
-  });
-
-program
-  .command('lockfile')
-  .description('Generate a design system lockfile')
-  .requiredOption('-u, --url <url>', 'Figma file URL')
-  .requiredOption('-t, --token <token>', 'Figma Personal Access Token')
-  .option('-o, --output <file>', 'Output filename', '.figmake.lock')
-  .action(async (options) => {
-    const { url, token, output } = options;
-    const fileKey = extractFileKey(url);
-    if (!fileKey) return;
-
-    try {
-      const fileData = await fetchFigmaFile(fileKey, token);
-      const tokens = extractDesignTokens([fileData.document]);
-      const lockfile = generateLockfile(fileData.name, fileKey, tokens);
-      await fs.writeFile(output, lockfile);
-      console.log(`✅ Lockfile generated: ${output}`);
-    } catch (e: any) {
-      console.error('❌ Error:', e.message);
-    }
-  });
-
-program
-  .command('guard')
-  .description('Generate AI agent constraints')
-  .requiredOption('-u, --url <url>', 'Figma file URL')
-  .requiredOption('-t, --token <token>', 'Figma Personal Access Token')
-  .option('--agent <type>', 'Agent type (cursor, claude, prompt)', 'cursor')
-  .action(async (options) => {
-    const { url, token, agent } = options;
-    const fileKey = extractFileKey(url);
-    if (!fileKey) return;
-
-    try {
-      const fileData = await fetchFigmaFile(fileKey, token);
-      const tokens = extractDesignTokens([fileData.document]);
-      
-      if (agent === 'cursor') {
-        const rules = generateCursorRules(tokens);
-        await fs.ensureDir('.cursor/rules');
-        await fs.writeFile('.cursor/rules/design-system.mdc', rules);
-        console.log('🛡️ Cursor rules generated at .cursor/rules/design-system.mdc');
-      } else if (agent === 'prompt') {
-        console.log('\n--- PASTE THIS INTO YOUR AI CHAT ---\n');
-        console.log(generatePromptContext(tokens));
+      if (!token) {
+        console.log('\n \u26A0 No token provided. Set one with /config or pass --token');
+        console.log('   Get a token at: https://www.figma.com/settings \u2192 Personal Access Tokens\n');
+        process.exit(1);
       }
-    } catch (e: any) {
-      console.error('❌ Error:', e.message);
+
+      await runConvert(url, token, output);
+      process.exit(0);
     }
-  });
 
-function extractFileKey(url: string): string | null {
-  const match = url.match(/file\/([a-zA-Z0-9]+)/);
-  return match ? match[1] : null;
-}
+    /* ── Check for direct mode flags ── */
+    if (firstArg === '--help' || firstArg === '-h') {
+      showBanner();
+      const helpCmd = findCommand('/help');
+      if (helpCmd) await helpCmd.cmd.handler([]);
+      process.exit(0);
+    } else if (firstArg === '--version' || firstArg === '-v') {
+      const versionCmd = findCommand('/version');
+      if (versionCmd) await versionCmd.cmd.handler([]);
+      process.exit(0);
+    } else if (firstArg === '--demo') {
+      const demoCmd = findCommand('/demo');
+      if (demoCmd) await demoCmd.cmd.handler(args.slice(1));
+      process.exit(0);
+    }
 
-async function fetchFigmaFile(fileKey: string, token: string) {
-  const response = await axios.get(`https://api.figma.com/v1/files/${fileKey}`, {
-    headers: { 'X-Figma-Token': token }
-  });
-  return response.data;
-}
-
-async function runDemo(output: string) {
-  try {
-    const fileData = MOCK_FIGMA_FILE;
-    const nodeMap = buildNodeMap(fileData.document);
-    const getNodeById = (id: string) => nodeMap.get(id);
-
-    const firstPage = fileData.document.children[0];
-    const frames = (firstPage as any).children.filter((c: any) => c.type === 'FRAME' || c.type === 'COMPONENT');
-
-    await fs.ensureDir(output);
-    for (const frame of frames) {
-      console.log(`📦 Generating demo component: ${frame.name}...`);
-      const { files } = generateReactComponent(frame, { getNodeById });
-      for (const [filename, content] of Object.entries(files)) {
-        await fs.writeFile(path.join(output, filename), content);
+    /* ── Generic command dispatch for slash-prefixed args ── */
+    const cmdStr = args.join(' ');
+    const result = findCommand(cmdStr);
+    if (result) {
+      try {
+        const exitVal = await result.cmd.handler(result.args);
+        if (exitVal === 'exit') process.exit(0);
+      } catch (e: any) {
+        error(e.message || 'Command failed');
+        process.exit(1);
       }
+    } else {
+      error(`Unknown command: ${args[0]}`, 'Run figmake --help to see all commands');
+      process.exit(1);
     }
-    console.log(`✅ Demo complete! Files generated in ${output}`);
-  } catch (e: any) {
-    console.error('❌ Demo Error:', e.message);
+    return;
   }
+
+  // No arguments — interactive mode via Ink
+  const { runInkApp } = await import('./interactive.tsx');
+  await runInkApp();
 }
 
-function buildNodeMap(root: any) {
-  const map = new Map<string, any>();
-  const traverse = (node: any) => {
-    map.set(node.id, node);
-    if (node.children) node.children.forEach(traverse);
-  };
-  traverse(root);
-  return map;
-}
+// Handle unexpected errors gracefully
+process.on('uncaughtException', (err) => {
+  console.error(`\n ${'✗'} Unexpected error: ${err.message}`);
+  process.exit(1);
+});
 
-program.parse();
+process.on('unhandledRejection', (err: any) => {
+  console.error(`\n ${'✗'} Unexpected rejection: ${err.message}`);
+  process.exit(1);
+});
+
+main().catch(() => process.exit(1));

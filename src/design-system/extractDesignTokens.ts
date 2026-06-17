@@ -1,10 +1,32 @@
-export function extractDesignTokens(nodes: any[]) {
+export interface ExtractedDesignTokens {
+  colors: {
+    primary: Record<string, string>;
+    secondary: Record<string, string>;
+    background: Record<string, string>;
+    text: Record<string, string>;
+  };
+  typography: {
+    fontFamilies: Record<string, string>;
+    scale: Record<string, { fontSize: string; lineHeight: string }>;
+  };
+  spacing: {
+    unit: number;
+    scale: Record<string, number>;
+  };
+  borderRadius: {
+    scale: Record<string, string>;
+  };
+  palette: any;
+  shadows: any;
+}
+
+export function extractDesignTokens(nodes: any[]): ExtractedDesignTokens {
   return {
     palette: extractPalette(nodes),
     typography: extractTypography(nodes),
     spacing: extractSpacing(nodes),
     shadows: extractShadows(nodes)
-  };
+  } as any;
 }
 
 function extractPalette(nodes: any[]) {

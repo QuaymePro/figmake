@@ -22,23 +22,41 @@
   },
   "scripts": {
     "build": "npm run build:plugin && npm run build:cli",
-    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js && cp src/plugin/ui.html dist/plugin/ui.html && cp src/plugin/manifest.json dist/plugin/manifest.json",
-    "build:cli": "esbuild src/cli/index.ts --bundle --platform=node --outfile=dist/cli/index.js",
+    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js && node scripts/copy-plugin-files.js",
+    "build:cli": "esbuild src/cli/index.ts --bundle --platform=node --outfile=dist/cli/index.js --jsx=automatic --jsx-import-source=react --external:ink --external:ink-text-input --external:ink-use-stdout-dimensions --external:react --external:react-devtools-core --external:yoga-layout --external:scheduler --external:react-reconciler",
     "test": "vitest --passWithNoTests",
     "lint": "eslint src/**/*.ts",
     "dev": "concurrently \"npm run dev:plugin\" \"npm run dev:cli\""
   },
   "devDependencies": {
+    "@figma/plugin-typings": "^1.128.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/gradient-string": "^1.1.6",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "concurrently": "^8.0.0",
     "esbuild": "^0.20.0",
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0",
     "eslint": "^8.0.0",
-    "concurrently": "^8.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.4.3",
     "axios": "^1.6.0",
+    "boxen": "^7.1.1",
+    "chalk": "^5.6.2",
+    "clipboardy": "^5.3.1",
     "commander": "^12.0.0",
     "dotenv": "^16.4.0",
-    "fs-extra": "^11.2.0"
+    "fs-extra": "^11.2.0",
+    "gradient-string": "^2.0.2",
+    "ink": "^5.2.1",
+    "ink-text-input": "^6.0.0",
+    "ink-use-stdout-dimensions": "^1.0.5",
+    "inquirer": "^9.3.8",
+    "ora": "^8.2.0",
+    "react": "^18.3.1"
   }
 }

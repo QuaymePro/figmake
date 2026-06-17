@@ -54,8 +54,8 @@ const TRIGGER_MAP: Record<string, string> = {
 function calculateChildDeltas(sourceNode: any, destNode: any): Record<string, ChildDelta> {
   const deltas: Record<string, ChildDelta> = {};
   if (!sourceNode.children || !destNode.children) return deltas;
-  const sourceChildren = new Map(sourceNode.children.map((c: any) => [c.name, c]));
-  const destChildren = new Map(destNode.children.map((c: any) => [c.name, c]));
+  const sourceChildren = new Map<string, any>(sourceNode.children.map((c: any) => [c.name, c]));
+  const destChildren = new Map<string, any>(destNode.children.map((c: any) => [c.name, c]));
   for (const [name, destChild] of destChildren.entries()) {
     const sourceChild: any = sourceChildren.get(name);
     if (sourceChild) {
@@ -79,7 +79,7 @@ export function extractAnimations(node: any, getNodeById?: (id: string) => any):
     if (reaction.action?.destinationId) {
       mapped.destinationId = reaction.action.destinationId;
       const lookup = getNodeById || (typeof figma !== 'undefined' ? figma.getNodeById : undefined);
-      if (lookup) {
+      if (lookup && mapped.destinationId) {
         try {
           const destNode = lookup(mapped.destinationId);
           if (destNode) {

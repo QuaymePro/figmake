@@ -29,7 +29,7 @@ alwaysApply: true
 2. NEVER use arbitrary color values
 3. NEVER change font families
 4. USE the spacing scale for all padding/margin/gap
-5. MATCH border-radius to the design system (${tokens.borderRadius.scale.join(', ')})
+5. MATCH border-radius to the design system (${Object.values(tokens.borderRadius.scale).join(', ')})
 6. WHEN IN DOUBT, reference the .figmake.lock file
 `;
 }

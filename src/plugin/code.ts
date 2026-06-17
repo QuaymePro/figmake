@@ -132,7 +132,7 @@ function clone(val: any): any {
 
 function updateSelection() {
   const selection = figma.currentPage.selection;
-  const collisions = detectCollisions(selection);
+  const collisions = detectCollisions([...selection]);
   const data = selection.map(node => extractProperties(node));
   const metrics = calculateMetrics(data);
   metrics.collisions = collisions.length;
