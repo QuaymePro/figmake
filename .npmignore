@@ -1,0 +1,25 @@
+# Development
+.claude/
+.opencode/
+figmake-output/
+node_modules/
+dist/
+*.log
+
+# Testing
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+.env
+.env.local
+.clauderc.json
