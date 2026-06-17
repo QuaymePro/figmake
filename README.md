@@ -1,5 +1,10 @@
 # Figmake
 
+[![npm version](https://img.shields.io/npm/v/figmake-pro.svg)](https://www.npmjs.com/package/figmake-pro)
+[![CI](https://github.com/QuaymePro/figmake/actions/workflows/ci.yml/badge.svg)](https://github.com/QuaymePro/figmake/actions/workflows/ci.yml)
+[![Windows Support](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-blue)](https://github.com/QuaymePro/figmake)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/QuaymePro/figmake/blob/main/LICENSE)
+
 > Design-to-code compiler with AI agent guardrails.  
 > Extract Figma designs as pixel-perfect React code. Generate design lockfiles that keep vibecoding agents from hallucinating styles.
 
