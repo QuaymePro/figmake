@@ -28,17 +28,29 @@ Figmake extracts the **ground truth** from your Figma files and generates:
 npm install -g figmake-pro
 ```
 
-### 2. Try the Demo (No Token Needed)
+### 2. Start Interactive Shell
 ```bash
-figmake --demo
+figmake
 ```
 
-### 3. Export Your Own Project
-Get your Figma Personal Access Token from **Account Settings > Personal Access Tokens**.
+The interactive shell provides:
+- **Command history** - Use ↑/↓ arrows to navigate previous commands
+- **Tab completion** - Press Tab to autocomplete commands and flags
+- **All commands** - /convert, /demo, /config, /plugin, /help, /clear, /version, /exit
 
+### 3. Or Use Direct Commands
 ```bash
-# Export components from a Figma file
-figmake export "https://figma.com/file/S6D8yK17S2M0T2E7O1X5E6/Figmake-Demo-Library" --token YOUR_TOKEN
+# Show help
+figmake --help
+
+# Run demo (no token needed)
+figmake --demo
+
+# Convert a Figma file
+figmake convert "https://figma.com/file/..." --token YOUR_TOKEN
+
+# Interactive config
+figmake --config
 ```
 
 ## Troubleshooting

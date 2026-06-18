@@ -1,4 +1,4 @@
-{
+ {
   "name": "figmake-pro",
   "version": "3.0.5",
   "description": "Design-to-code compiler with AI agent guardrails. Extract Figma designs as pixel-perfect React code with enforced design tokens.",
@@ -22,8 +22,8 @@
   },
   "scripts": {
     "build": "npm run build:plugin && npm run build:cli",
-    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js && node scripts/copy-plugin-files.js",
-    "build:cli": "esbuild src/cli/index.ts --bundle --platform=node --outfile=dist/cli/index.js --jsx=automatic --jsx-import-source=react --external:ink --external:ink-text-input --external:ink-use-stdout-dimensions --external:react --external:react-devtools-core --external:yoga-layout --external:scheduler --external:react-reconciler",
+    "build:plugin": "esbuild src/plugin/code.ts --bundle --outfile=dist/plugin/code.js && node scripts/copy-plugin-files.cjs",
+    "build:cli": "esbuild src/cli/index.ts --bundle --platform=node --outfile=dist/cli/index.js --format=cjs",
     "test": "vitest --passWithNoTests",
     "lint": "eslint src/**/*.ts",
     "dev": "concurrently \"npm run dev:plugin\" \"npm run dev:cli\""
@@ -60,3 +60,4 @@
     "react": "^18.3.1"
   }
 }
+
