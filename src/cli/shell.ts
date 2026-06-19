@@ -20,6 +20,10 @@ let cursorPosition = 0;
 let showMenu = false;
 let menuIndex = 0;
 let hasToken = false;
+let reverseSearchActive = false;
+let reverseSearchQuery = '';
+let reverseSearchResults: string[] = [];
+let reverseSearchIndex = 0;
 
 // ANSI escape codes
 const ESC = '\x1b';
@@ -65,10 +69,32 @@ function getStatusLine(): string {
   return chalk.dim(' ─ '.repeat(30)) + chalk.dim(` ${historyCount} cmds │ ${tokenStatus}`);
 }
 
+function printReverseSearch(): void {
+  if (!reverseSearchActive) return;
+
+  const prompt = chalk.hex('#8B5CF6')('◧') + ' ';
+  const searchPrompt = chalk.dim('(reverse-search)') + ' ';
+
+  // Find matching history entries
+  reverseSearchResults = commandHistory.filter(h => h.toLowerCase().includes(reverseSearchQuery.toLowerCase()));
+  reverseSearchIndex = Math.min(reverseSearchIndex, Math.max(0, reverseSearchResults.length - 1));
+
+  const currentMatch = reverseSearchResults[reverseSearchResults.length - 1 - reverseSearchIndex];
+
+  let display = prompt + searchPrompt + reverseSearchQuery;
+  if (currentMatch) {
+    display += '\n' + chalk.dim('→ ') + chalk.green(currentMatch);
+  } else {
+    display += '\n' + chalk.dim('(no matches)');
+  }
+
+  process.stdout.write('\r' + CLEAR_LINE + display + CLEAR_DOWN);
+}
+
 function printBanner(): void {
   showBanner();
   console.log(chalk.dim('  Type ') + chalk.cyan('/help') + chalk.dim(' for commands, ') + chalk.cyan('Tab') + chalk.dim(' to complete, ') + chalk.cyan('↑↓') + chalk.dim(' for history'));
-  console.log(chalk.dim('  Press ') + chalk.cyan('/') + chalk.dim(' to browse commands, ') + chalk.cyan('Enter') + chalk.dim(' to run selected\n'));
+  console.log(chalk.dim('  Press ') + chalk.cyan('/') + chalk.dim(' to browse commands, ') + chalk.cyan('Ctrl+R') + chalk.dim(' for history search\n'));
   console.log(getStatusLine());
 }
 
@@ -306,6 +332,46 @@ export async function runShell(): Promise<void> {
 
   // Raw keypress handling
   process.stdin.on('keypress', (str, key) => {
+    // Handle reverse search mode
+    if (reverseSearchActive) {
+      if (key?.name === 'enter') {
+        // Accept current match
+        reverseSearchActive = false;
+        if (reverseSearchResults.length > 0) {
+          input = reverseSearchResults[reverseSearchResults.length - 1 - reverseSearchIndex];
+        } else {
+          input = reverseSearchQuery;
+        }
+        cursorPosition = input.length;
+        printPromptWithInput();
+        return;
+      }
+      if (key?.name === 'up') {
+        reverseSearchIndex = Math.min(reverseSearchIndex + 1, reverseSearchResults.length - 1);
+        printReverseSearch();
+        return;
+      }
+      if (key?.name === 'down') {
+        reverseSearchIndex = Math.max(0, reverseSearchIndex - 1);
+        printReverseSearch();
+        return;
+      }
+      if (key?.name === 'escape') {
+        reverseSearchActive = false;
+        input = savedInput;
+        cursorPosition = input.length;
+        printPromptWithInput();
+        return;
+      }
+      if (str && !key?.ctrl) {
+        reverseSearchQuery += str;
+        reverseSearchIndex = 0;
+        printReverseSearch();
+        return;
+      }
+      return;
+    }
+
     // Character typed
     if (str && !key?.ctrl && !key?.meta) {
       input = input.slice(0, cursorPosition) + str + input.slice(cursorPosition);
@@ -385,10 +451,32 @@ export async function runShell(): Promise<void> {
           rl.emit('line', input);
           return;
         }
+      } else if (key.ctrl && key.name === 'r') {
+        // Ctrl+R: Reverse history search
+        if (!reverseSearchActive) {
+          reverseSearchActive = true;
+          reverseSearchQuery = '';
+          reverseSearchIndex = 0;
+          savedInput = input;
+          input = '';
+          cursorPosition = 0;
+          showMenu = false;
+          menuItems = [];
+          printReverseSearch();
+        }
+        return;
       } else if (key.ctrl && key.name === 'c') {
-        process.stdout.write(SHOW_CURSOR + '\n');
-        rl.close();
-        process.exit(0);
+        if (reverseSearchActive) {
+          reverseSearchActive = false;
+          input = savedInput;
+          cursorPosition = input.length;
+          printPromptWithInput();
+        } else {
+          process.stdout.write(SHOW_CURSOR + '\n');
+          rl.close();
+          process.exit(0);
+        }
+        return;
       }
     }
 
