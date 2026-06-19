@@ -24,7 +24,6 @@ let reverseSearchActive = false;
 let reverseSearchQuery = '';
 let reverseSearchResults: string[] = [];
 let reverseSearchIndex = 0;
-let processedBytes: number[] = [];
 
 // ANSI escape codes
 const ESC = '\x1b';
