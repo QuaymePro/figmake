@@ -34,9 +34,22 @@ figmake
 ```
 
 The interactive shell provides:
-- **Command history** - Use ↑/↓ arrows to navigate previous commands
-- **Tab completion** - Press Tab to autocomplete commands and flags
-- **All commands** - /convert, /demo, /config, /plugin, /help, /clear, /version, /exit
+- **Command menu** - Press `/` to browse all available commands with descriptions
+- **Smart autocomplete** - Start typing any command and press `Tab` to complete
+- **Command history** - Use `↑/↓` arrows to navigate previous commands
+- **Syntax highlighting** - Commands, flags, and URLs are color-coded
+- **Status line** - Shows history count and token status at a glance
+
+**Quick commands:**
+| Command | Description |
+|---------|-------------|
+| `/` | Open command menu |
+| `/convert` | Convert Figma to React |
+| `/demo` | Generate demo components |
+| `/config` | Configuration wizard |
+| `/help` | Show detailed help |
+| `/clear` | Clear the screen |
+| `/exit` | Exit the shell |
 
 ### 3. Or Use Direct Commands
 ```bash
