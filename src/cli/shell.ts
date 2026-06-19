@@ -24,6 +24,7 @@ let reverseSearchActive = false;
 let reverseSearchQuery = '';
 let reverseSearchResults: string[] = [];
 let reverseSearchIndex = 0;
+let processedBytes: number[] = [];
 
 // ANSI escape codes
 const ESC = '\x1b';
@@ -32,7 +33,6 @@ const CLEAR_DOWN = `${ESC}[J`;
 const HIDE_CURSOR = `${ESC}[?25l`;
 const SHOW_CURSOR = `${ESC}[?25h`;
 const UP_ONE = `${ESC}[A`;
-const DOWN_ONE = `${ESC}[B`;
 
 function loadHistory(): void {
   try {
@@ -74,8 +74,11 @@ function printBanner(): void {
 
 function printPrompt(): void {
   const prompt = chalk.hex('#8B5CF6')('◧') + ' ';
-  const displayInput = input || chalk.dim('Type /help for commands...');
+  const displayInput = input.length === 0 ? chalk.dim('Type /help for commands...') : input;
   process.stdout.write('\r' + CLEAR_LINE + prompt + displayInput + CLEAR_LINE);
+  // Position cursor
+  const cursorPos = prompt.length + cursorPosition;
+  process.stdout.write(`\x1b[${cursorPos}G`);
 }
 
 function getMenuLines(): number {
@@ -241,29 +244,35 @@ export async function runShell(): Promise<void> {
   printBanner();
   printPrompt();
 
+  let enterPressed = false;
+
   rl.on('line', async (line) => {
-    if (reverseSearchActive) {
-      reverseSearchActive = false;
-      input = reverseSearchResults.length > 0
-        ? reverseSearchResults[reverseSearchResults.length - 1 - reverseSearchIndex]
-        : reverseSearchQuery;
-      cursorPosition = input.length;
+    if (enterPressed) {
+      enterPressed = false;
+
+      if (reverseSearchActive) {
+        reverseSearchActive = false;
+        input = reverseSearchResults.length > 0
+          ? reverseSearchResults[reverseSearchResults.length - 1 - reverseSearchIndex]
+          : reverseSearchQuery;
+        cursorPosition = input.length;
+        printPrompt();
+        return;
+      }
+
+      if (showMenu && menuItems.length > 0 && menuItems[menuIndex]) {
+        await executeCommand(menuItems[menuIndex].cmd);
+      } else if (input.trim()) {
+        await executeCommand(input);
+      }
+
+      input = '';
+      cursorPosition = 0;
+      showMenu = false;
+      menuIndex = 0;
+      menuItems = [];
       printPrompt();
-      return;
     }
-
-    if (showMenu && menuItems.length > 0 && menuItems[menuIndex]) {
-      await executeCommand(menuItems[menuIndex].cmd);
-    } else if (input.trim()) {
-      await executeCommand(input);
-    }
-
-    input = '';
-    cursorPosition = 0;
-    showMenu = false;
-    menuIndex = 0;
-    menuItems = [];
-    printPrompt();
   });
 
   rl.on('close', () => {
@@ -279,51 +288,103 @@ export async function runShell(): Promise<void> {
     process.exit(0);
   });
 
-  // Raw keypress handling
-  rl.input.on('keypress', (str, key) => {
-    // Reverse search mode
-    if (reverseSearchActive) {
-      if (key?.name === 'enter') {
-        reverseSearchActive = false;
-        input = reverseSearchResults.length > 0
-          ? reverseSearchResults[reverseSearchResults.length - 1 - reverseSearchIndex]
-          : reverseSearchQuery;
-        cursorPosition = input.length;
-        console.log('\n');
-        printPrompt();
-        return;
+  // Raw keypress handling - process stdin directly
+  process.stdin.on('data', (data: Buffer) => {
+    const bytes = Array.from(data);
+
+    // Check for escape sequences
+    if (bytes[0] === 0x1b) {
+      // Escape sequence
+      if (bytes.length === 3 && bytes[1] === 0x5b) {
+        const key = bytes[2];
+        // Up arrow
+        if (key === 0x41) {
+          if (reverseSearchActive) {
+            reverseSearchIndex = Math.min(reverseSearchIndex + 1, reverseSearchResults.length - 1);
+            console.log(UP_ONE + UP_ONE);
+            printReverseSearch();
+          } else if (showMenu) {
+            menuIndex = Math.max(0, menuIndex - 1);
+            const menuLines = getMenuLines();
+            console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
+            printPrompt();
+            printMenu();
+          } else {
+            if (commandHistory.length > 0) {
+              if (historyIndex === -1) savedInput = input;
+              historyIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
+              input = commandHistory[commandHistory.length - 1 - historyIndex];
+              cursorPosition = input.length;
+              printPrompt();
+            }
+          }
+          return;
+        }
+        // Down arrow
+        if (key === 0x42) {
+          if (reverseSearchActive) {
+            reverseSearchIndex = Math.max(0, reverseSearchIndex - 1);
+            console.log(UP_ONE + UP_ONE);
+            printReverseSearch();
+          } else if (showMenu) {
+            menuIndex = Math.min(menuItems.length - 1, menuIndex + 1);
+            const menuLines = getMenuLines();
+            console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
+            printPrompt();
+            printMenu();
+          } else {
+            if (historyIndex > 0) {
+              historyIndex--;
+              input = commandHistory[commandHistory.length - 1 - historyIndex];
+              cursorPosition = input.length;
+              printPrompt();
+            } else if (historyIndex === 0) {
+              historyIndex = -1;
+              input = savedInput;
+              cursorPosition = input.length;
+              printPrompt();
+            }
+          }
+          return;
+        }
+        // Right arrow
+        if (key === 0x43) {
+          cursorPosition = Math.min(input.length, cursorPosition + 1);
+          printPrompt();
+          return;
+        }
+        // Left arrow
+        if (key === 0x44) {
+          cursorPosition = Math.max(0, cursorPosition - 1);
+          printPrompt();
+          return;
+        }
       }
-      if (key?.name === 'up') {
-        reverseSearchIndex = Math.min(reverseSearchIndex + 1, reverseSearchResults.length - 1);
-        console.log(UP_ONE + UP_ONE);
-        printReverseSearch();
-        return;
+      // Ctrl+C
+      if (bytes.length === 1 || (bytes.length >= 3 && bytes[bytes.length - 1] === 0x03)) {
+        // Check if it's just Ctrl+C
       }
-      if (key?.name === 'down') {
-        reverseSearchIndex = Math.max(0, reverseSearchIndex - 1);
-        console.log(UP_ONE + UP_ONE);
-        printReverseSearch();
-        return;
-      }
-      if (key?.name === 'escape') {
+      return;
+    }
+
+    // Ctrl+C (0x03)
+    if (bytes[0] === 0x03) {
+      if (reverseSearchActive) {
         reverseSearchActive = false;
         input = savedInput;
         cursorPosition = input.length;
         console.log('\r' + CLEAR_DOWN);
         printPrompt();
-        return;
-      }
-      if (str && !key?.ctrl) {
-        reverseSearchQuery += str;
-        reverseSearchIndex = 0;
-        printReverseSearch();
-        return;
+      } else {
+        process.stdout.write(SHOW_CURSOR + '\n');
+        rl.close();
+        process.exit(0);
       }
       return;
     }
 
-    // Ctrl+R: Reverse search
-    if (key?.ctrl && key.name === 'r') {
+    // Ctrl+R (0x12)
+    if (bytes[0] === 0x12) {
       reverseSearchActive = true;
       reverseSearchQuery = '';
       reverseSearchIndex = 0;
@@ -337,155 +398,115 @@ export async function runShell(): Promise<void> {
       return;
     }
 
-    // Ctrl+C: Exit
-    if (key?.ctrl && key.name === 'c') {
-      process.stdout.write(SHOW_CURSOR + '\n');
-      rl.close();
-      process.exit(0);
+    // Enter (0x0d or 0x0a)
+    if (bytes[0] === 0x0d || bytes[0] === 0x0a) {
+      enterPressed = true;
+      if (showMenu && menuItems.length > 0) {
+        input = menuItems[menuIndex].cmd;
+        showMenu = false;
+        menuItems = [];
+      }
+      console.log('');
+      rl.emit('line', input);
       return;
     }
 
-    // Character typed
-    if (str && !key?.ctrl && !key?.meta) {
-      input = input.slice(0, cursorPosition) + str + input.slice(cursorPosition);
-      cursorPosition += str.length;
-      printPrompt();
+    // Backspace (0x7f or 0x08)
+    if (bytes[0] === 0x7f || bytes[0] === 0x08) {
+      if (reverseSearchActive) {
+        if (reverseSearchQuery.length > 0) {
+          reverseSearchQuery = reverseSearchQuery.slice(0, -1);
+          reverseSearchIndex = 0;
+          printReverseSearch();
+        }
+      } else if (cursorPosition > 0) {
+        input = input.slice(0, cursorPosition - 1) + input.slice(cursorPosition);
+        cursorPosition--;
+        printPrompt();
+      }
+      return;
     }
 
-    // Handle special keys
-    if (key) {
-      if (key.name === 'backspace') {
-        if (cursorPosition > 0) {
-          input = input.slice(0, cursorPosition - 1) + input.slice(cursorPosition);
-          cursorPosition--;
-          printPrompt();
-        }
-      }
-      if (key.name === 'delete') {
-        if (cursorPosition < input.length) {
-          input = input.slice(0, cursorPosition) + input.slice(cursorPosition + 1);
-          printPrompt();
-        }
-      }
-      if (key.name === 'left') {
-        cursorPosition = Math.max(0, cursorPosition - 1);
+    // Delete (0x1b 0x5b 0x37 or handled elsewhere)
+    if (bytes[0] === 0x1b && bytes.length >= 3 && bytes[1] === 0x5b && bytes[2] === 0x37) {
+      if (cursorPosition < input.length) {
+        input = input.slice(0, cursorPosition) + input.slice(cursorPosition + 1);
         printPrompt();
       }
-      if (key.name === 'right') {
-        cursorPosition = Math.min(input.length, cursorPosition + 1);
-        printPrompt();
-      }
-      if (key.name === 'home') {
-        cursorPosition = 0;
-        printPrompt();
-      }
-      if (key.name === 'end') {
+      return;
+    }
+
+    // Tab (0x09)
+    if (bytes[0] === 0x09) {
+      if (showMenu && menuItems.length > 0) {
+        input = menuItems[menuIndex].cmd;
         cursorPosition = input.length;
+        showMenu = false;
+        menuItems = [];
         printPrompt();
-      }
-      if (key.name === 'tab') {
-        if (showMenu && menuItems.length > 0) {
-          input = menuItems[menuIndex].cmd;
+      } else if (input.startsWith('/')) {
+        const matches = filterMenu(input);
+        if (matches.length === 1) {
+          input = matches[0].cmd;
           cursorPosition = input.length;
-          showMenu = false;
-          menuItems = [];
           printPrompt();
-        } else if (input.startsWith('/')) {
-          const matches = filterMenu(input);
-          if (matches.length === 1) {
-            input = matches[0].cmd;
-            cursorPosition = input.length;
-            printPrompt();
-          } else if (matches.length > 1) {
-            showMenu = true;
-            menuItems = matches;
-            menuIndex = 0;
-            console.log('\r' + CLEAR_DOWN);
-            printPrompt();
-            printMenu();
-          }
-        }
-        return;
-      }
-      if (key.name === 'up') {
-        if (showMenu) {
-          menuIndex = Math.max(0, menuIndex - 1);
-          const menuLines = getMenuLines();
-          console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
+        } else if (matches.length > 1) {
+          showMenu = true;
+          menuItems = matches;
+          menuIndex = 0;
+          console.log('\r' + CLEAR_DOWN);
           printPrompt();
           printMenu();
-        } else {
-          if (commandHistory.length > 0) {
-            if (historyIndex === -1) savedInput = input;
-            historyIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
-            input = commandHistory[commandHistory.length - 1 - historyIndex];
-            cursorPosition = input.length;
-            printPrompt();
-          }
-        }
-        return;
-      }
-      if (key.name === 'down') {
-        if (showMenu) {
-          menuIndex = Math.min(menuItems.length - 1, menuIndex + 1);
-          const menuLines = getMenuLines();
-          console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
-          printPrompt();
-          printMenu();
-        } else {
-          if (historyIndex > 0) {
-            historyIndex--;
-            input = commandHistory[commandHistory.length - 1 - historyIndex];
-            cursorPosition = input.length;
-            printPrompt();
-          } else if (historyIndex === 0) {
-            historyIndex = -1;
-            input = savedInput;
-            cursorPosition = input.length;
-            printPrompt();
-          }
-        }
-        return;
-      }
-      if (key.name === 'enter') {
-        if (showMenu && menuItems.length > 0) {
-          input = menuItems[menuIndex].cmd;
-          showMenu = false;
-          menuItems = [];
-          console.log('\n');
-          rl.emit('line', input);
-          return;
-        }
-        if (input.trim()) {
-          console.log('\n');
-          rl.emit('line', input);
-          return;
         }
       }
+      return;
     }
 
-    // Handle / for menu trigger
-    if (input === '/') {
-      showMenu = true;
-      menuItems = filterMenu('');
-      menuIndex = 0;
-      console.log('\r' + CLEAR_DOWN);
-      printPrompt();
-      printMenu();
-    } else if (showMenu && input.startsWith('/')) {
-      menuItems = filterMenu(input);
-      menuIndex = 0;
-      if (menuItems.length === 0) {
-        showMenu = false;
+    // Regular character input
+    if (bytes[0] >= 0x20 && bytes[0] <= 0x7e) {
+      const char = String.fromCharCode(bytes[0]);
+
+      // Handle / for menu trigger
+      if (char === '/' && input === '') {
+        showMenu = true;
+        menuItems = filterMenu('');
+        menuIndex = 0;
+        input = char;
+        cursorPosition = 1;
+        console.log('\r' + CLEAR_DOWN);
+        printPrompt();
+        printMenu();
+        return;
       }
-      const menuLines = getMenuLines();
-      console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
-      printPrompt();
-      if (showMenu) printMenu();
-    } else if (showMenu && !input.startsWith('/')) {
-      showMenu = false;
-      menuItems = [];
-      printPrompt();
+
+      if (reverseSearchActive) {
+        reverseSearchQuery += char;
+        reverseSearchIndex = 0;
+        printReverseSearch();
+      } else {
+        input = input.slice(0, cursorPosition) + char + input.slice(cursorPosition);
+        cursorPosition++;
+
+        // Update menu filtering
+        if (showMenu && input.startsWith('/')) {
+          menuItems = filterMenu(input);
+          menuIndex = 0;
+          if (menuItems.length === 0) {
+            showMenu = false;
+          }
+          const menuLines = getMenuLines();
+          console.log(`${ESC}[${menuLines + 1}A` + CLEAR_DOWN);
+          printPrompt();
+          if (showMenu) printMenu();
+        } else if (showMenu && !input.startsWith('/')) {
+          showMenu = false;
+          menuItems = [];
+          printPrompt();
+        } else {
+          printPrompt();
+        }
+      }
+      return;
     }
   });
 }
