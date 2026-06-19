@@ -1,6 +1,6 @@
- {
+{
   "name": "figmake-pro",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "Design-to-code compiler with AI agent guardrails. Extract Figma designs as pixel-perfect React code with enforced design tokens.",
   "keywords": [
     "figma",
@@ -60,4 +60,3 @@
     "react": "^18.3.1"
   }
 }
-
