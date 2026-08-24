@@ -1,6 +1,6 @@
 # Figmake
 
-[![npm version](https://img.shields.io/npm/v/figmake-pro.svg)](https://www.npmjs.com/package/figmake-pro)
+[![npm version](https://img.shields.io/npm/v/figmake.svg)](https://www.npmjs.com/package/figmake)
 [![CI](https://github.com/QuaymePro/figmake/actions/workflows/ci.yml/badge.svg)](https://github.com/QuaymePro/figmake/actions/workflows/ci.yml)
 [![Windows Support](https://img.shields.io/badge/platform-windows%20%7C%20macos%20%7C%20linux-blue)](https://github.com/QuaymePro/figmake)
 [![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/QuaymePro/figmake/blob/main/LICENSE)
@@ -25,7 +25,7 @@ Figmake extracts the **ground truth** from your Figma files and generates:
 
 ### 1. Install Figmake
 ```bash
-npm install -g figmake-pro
+npm install -g @sleonereed/figmake
 ```
 
 ### 2. Start Interactive Shell
