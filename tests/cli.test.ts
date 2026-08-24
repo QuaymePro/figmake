@@ -16,7 +16,7 @@ describe('figmake-pro', () => {
 
   it('should have a valid package.json', () => {
     const pkg = require('../package.json');
-    expect(pkg.name).toBe('figmake-pro');
+    expect(pkg.name).toBe('@sleonereed/figmake');
     expect(pkg.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(pkg.bin).toBeDefined();
   });
