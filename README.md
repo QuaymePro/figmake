@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/QuaymePro/figmake/blob/main/LICENSE)
 [![Latest Release](https://img.shields.io/github/v/release/QuaymePro/figmake?label=latest&color=green)](https://github.com/QuaymePro/figmake/releases/tag/v3.0.5)
 
-[![Image of figmake on it's start](assets/Figmake snapshot.PNG)]
+[![Image of figmake on it's start](assets/Figmke snapshot.PNG)]
 > Design-to-code compiler with AI agent guardrails.  
 > Extract Figma designs as pixel-perfect React code. Generate design lockfiles that keep vibecoding agents from hallucinating styles.
 
